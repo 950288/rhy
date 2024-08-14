@@ -3,6 +3,10 @@ use dirs;
 use serde_yaml;
 use std::collections::BTreeMap;
 use std::io::Write;
+use std::env;
+use std::path::Path;
+use std::fs;
+use std::time::SystemTime;
 
 fn get_config_path() -> std::path::PathBuf {
     let app_name = "rhy";
@@ -24,10 +28,6 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
 
     let file = std::fs::File::open(&config_path);
     if let Ok(file) = file {
-        // println!(
-        //     "Reading config file at {:?}",
-        //     config_path.to_string_lossy().replace("\\", "/")
-        // );
 
         let reader = std::io::BufReader::new(file);
 
@@ -41,11 +41,7 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
 
         return map;
     } else {
-        // println!(
-        //     "Creating config file at {:?}",
-        //     config_path.to_string_lossy().replace("\\", "/")
-        // );
-        // mkdir
+
         std::fs::create_dir_all(config_path.parent().unwrap()).unwrap();
 
         map.insert("cache_dir".to_string(), "/data/rcache".to_string());
@@ -63,22 +59,7 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
 }
 
 fn main() {
-    // expected Usage
 
-    // rhy -a
-    // refresh all files
-
-    // set config
-    // rhy -config mount_path /remote/
-
-    // rhy -s x.py
-    // print the state of x.py
-
-    // rhy -r x.py
-    // refresh and print the state of x.py
-
-    // rhy -r x.py -t 20s
-    // refresh x.py until get the latest update within 20s
 
     let matches = App::new("rhy")
         .version("0.1.0")
@@ -137,8 +118,28 @@ fn main() {
         return;
     }
 
-    if matches.is_present("state") {
-        println!("{:?}", config_map);
+    if let Some(file) = matches.value_of("state") {
+        let file_path = fs::canonicalize(Path::new(&file)).unwrap();
+        
+        // print!("{:?}", file_path);
+
+        match fs::metadata(file_path) {
+            Ok(metadata) => {
+                let modified = metadata.modified().unwrap();
+                
+                let sys_time = SystemTime::now();
+
+                let difference = sys_time.duration_since(modified);
+                if let Ok(difference) = difference {
+                    println!("Updated: {:?}", difference);
+                }
+            },
+            Err(e) => {
+                println!("Error accessing file metadata: {}", e);
+            }
+        }
+
+
         return;
     }
 
