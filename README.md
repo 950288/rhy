@@ -1,19 +1,26 @@
 # Usage
-```
-rhy -config /data/rcache /remote/
-```
 
-refresh cache
+refresh all files
 ```
 rhy -a
 ```
 
-refresh and print the state of x.py 
+set config
 ```
-rhy -s ./x.py
+rhy -config mount_path /remote/
 ```
 
-waiting for change withing duration
+print the state of x.py
 ```
-rhy -s ./x.py 20s 
+rhy -s x.py
+```
+
+refresh and print the state of x.py
+```
+rhy -r x.py
+```
+
+refresh x.py until get the latest update within 20s
+```
+rhy -r x.py -t 20s
 ```
