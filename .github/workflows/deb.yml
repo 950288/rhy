@@ -27,7 +27,7 @@ jobs:
         cargo deb 
 
     - name: Upload deb zip
-      uses: actions/upload-artifact@v3    
+      uses: actions/upload-artifact@v4    
       with:
         name: deb
         path: ./target/debian/*.deb
