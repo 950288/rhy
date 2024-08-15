@@ -2,7 +2,7 @@ use clap::{App, Arg};
 use dirs;
 use serde_yaml;
 use std::collections::BTreeMap;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::time::SystemTime;
@@ -59,7 +59,11 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
 }
 
 fn print_state(file_path: &PathBuf) {    
-    // print!("{:?}", file_path);
+    // read file before access metadata
+    let file = fs::File::open(file_path).unwrap();
+    let reader = std::io::BufReader::new(file);
+    let _ = reader.bytes().count();
+
     match fs::metadata(file_path) {
         Ok(metadata) => {
             let modified = metadata.modified().unwrap();
@@ -108,9 +112,6 @@ fn map_cache_file(File: &PathBuf, mount_path: &PathBuf, cache_dir: &PathBuf) -> 
 
 fn get_cached_file_path(config_map: &BTreeMap<String, String>, File: &PathBuf) -> PathBuf {
     let cache_dir = fs::canonicalize(Path::new(&config_map["cache_dir"])).unwrap().join(&config_map["remote_path"]);
-    println!("{:?}", fs::canonicalize(Path::new(&config_map["cache_dir"])).unwrap());
-    println!("{:?}", cache_dir);
-    println!("{:?}", &config_map["remote_path"]);
     let maped_file = map_cache_file(File, &fs::canonicalize(Path::new(&config_map["mount_path"])).unwrap(), &cache_dir);
 
     return maped_file;
@@ -125,12 +126,10 @@ fn remove_cache_file(file_path: &PathBuf) {
 }
 
 fn main() {
-
-
     let matches = App::new("rhy")
         .version("0.1.0")
-        .author("Rhy")
-        .about("A tool for track file state")
+        .author("95028 <950288s@gmail.com>")
+        .about("A tool for track file state(https://github.com/950288/rhy).")
         .arg(
             Arg::with_name("config")
                 .short("c")
