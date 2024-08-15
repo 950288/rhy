@@ -32,4 +32,29 @@ jobs:
         name: 0.2.0
         path: ./target/debian/*.deb
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Install coscmd
+      run: sudo pip install coscmd
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: 0.2.0
+        path: ./target/debian/*.deb
+
+    - name: Configure coscmd
+      env:
+        SECRET_ID: ${{ secrets.SECRET_ID }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        BUCKET: ${{ secrets.BUCKET }}
+        REGION: ${{ secrets.REGION }}
+      run: coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+    - name: Upload to cos
+      run: |
+        coscmd upload -s ./target/debian/*.deb /deb/rhy --ignore "./.git/*"
+        coscmd list /
+
     
