@@ -1,0 +1,45 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: install compiler
+      run: |
+        sudo apt install mingw-w64
+        cargo install cargo-deb
+
+    - name: Build for Linux
+      run: |
+        cargo build --release
+
+    - name: Upload Linux zip
+      uses: actions/upload-artifact@v3    
+      with:
+        name: rhy for Linux
+        path: ./target/release/rhy
+ 
+    - name: Build for deb
+      run: |
+        cargo deb 
+
+    - name: Upload deb zip
+      uses: actions/upload-artifact@v3    
+      with:
+        name: rhy for Linux
+        path: ./target/   
+
+    
