@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "A tool for track file state"
 readme = "README.md"
+authors = ["95028 <950288s@gmail.com>"]
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -22,5 +24,6 @@ section = "utility"
 priority = "optional"
 assets = [
     ["target/release/cargo-deb", "usr/bin/", "755"],
-    ["README.md", "usr/share/doc/cargo-deb/README", "644"],
+    ["LICENSE", "/usr/share/doc/rhy/LICENSE", doc = true, mode = "0644"],
+    ["README.md", "usr/share/doc/thy/README",doc = true, mode = "0644" ],
 ]
