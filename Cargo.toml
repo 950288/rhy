@@ -12,3 +12,15 @@ clap = "~2.27.0"
 dirs="1.0.3"
 serde_yaml="0.9.34"
 walkdir = "2.3"
+
+[package.metadata.deb]
+maintainer = "95028 <950288s@gmail.com>"
+license-file = ["LICENSE", "4"]
+extended-description = "A tool for track file state"
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/cargo-deb", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/cargo-deb/README", "644"],
+]
