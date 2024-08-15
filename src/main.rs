@@ -100,19 +100,19 @@ fn remove_all_cache(config_map: &BTreeMap<String, String>) {
     } 
 }
 
-fn map_cache_file(File: &PathBuf, mount_path: &PathBuf, cache_dir: &PathBuf) -> PathBuf {
-    let parent = PathBuf::from(File.parent().unwrap());
+fn map_cache_file(file: &PathBuf, mount_path: &PathBuf, cache_dir: &PathBuf) -> PathBuf {
+    let parent = PathBuf::from(file.parent().unwrap());
     // println!("{:?} {:?}", parent, mount_path);
     if &parent == mount_path {
-        return cache_dir.join(File.file_name().unwrap());
+        return cache_dir.join(file.file_name().unwrap());
     } else {
-        return map_cache_file(&parent, mount_path, cache_dir).join(File.file_name().unwrap());
+        return map_cache_file(&parent, mount_path, cache_dir).join(file.file_name().unwrap());
     }
 }
 
-fn get_cached_file_path(config_map: &BTreeMap<String, String>, File: &PathBuf) -> PathBuf {
+fn get_cached_file_path(config_map: &BTreeMap<String, String>, file: &PathBuf) -> PathBuf {
     let cache_dir = fs::canonicalize(Path::new(&config_map["cache_dir"])).unwrap().join(&config_map["remote_path"]);
-    let maped_file = map_cache_file(File, &fs::canonicalize(Path::new(&config_map["mount_path"])).unwrap(), &cache_dir);
+    let maped_file = map_cache_file(file, &fs::canonicalize(Path::new(&config_map["mount_path"])).unwrap(), &cache_dir);
 
     return maped_file;
 }
@@ -127,9 +127,9 @@ fn remove_cache_file(file_path: &PathBuf) {
 
 fn main() {
     let matches = App::new("rhy")
-        .version("0.1.0")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("95028 <950288s@gmail.com>")
-        .about("A tool for track file state(https://github.com/950288/rhy).")
+        .about("A tool for track file state.")
         .arg(
             Arg::with_name("config")
                 .short("c")
@@ -211,6 +211,6 @@ fn main() {
     }
     
     let config_file = get_config_path();
-    println!("{:?}", config_file.to_string_lossy().replace("\\", "/"));
+    println!("Config file: {:?}", config_file.to_string_lossy().replace("\\", "/"));
     println!("{:?}", config_map);
 }
