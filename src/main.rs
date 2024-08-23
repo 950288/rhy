@@ -1,12 +1,14 @@
 use clap::{App, Arg};
-use dirs;
-use serde_yaml;
-use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use dirs;
 use std::fs;
-use std::time::SystemTime;
+use serde_yaml;
+use regex::Regex;
 use walkdir::WalkDir;
+use std::time::Duration;
+use std::time::SystemTime;
+use std::collections::BTreeMap;
 
 fn get_config_path() -> std::path::PathBuf {
     let app_name = "rhy";
@@ -45,8 +47,8 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
         fs::create_dir_all(config_path.parent().unwrap()).unwrap();
 
         map.insert("cache_dir".to_string(), "/data/rcache".to_string());
-        map.insert("remote_path".to_string(), "/dev/".to_string());
         map.insert("mount_path".to_string(), "/remote".to_string());
+        map.insert("remote_path".to_string(), "vfs/".to_string());
 
         let yaml = serde_yaml::to_string(&map).unwrap();
 
@@ -58,8 +60,7 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
     }
 }
 
-fn print_state(file_path: &PathBuf) {    
-    // read file before access metadata
+fn get_file_updated_time(file_path: &PathBuf) -> Option<SystemTime> {
     let file = fs::File::open(file_path).unwrap();
     let reader = std::io::BufReader::new(file);
     let _ = reader.bytes().count();
@@ -67,16 +68,25 @@ fn print_state(file_path: &PathBuf) {
     match fs::metadata(file_path) {
         Ok(metadata) => {
             let modified = metadata.modified().unwrap();
-            
-            let sys_time = SystemTime::now();
-
-            let difference = sys_time.duration_since(modified);
-            if let Ok(difference) = difference {
-                println!("Updated: {:?}", difference);
-            }
+            return Some(modified);
         },
         Err(e) => {
-            println!("Error accessing file metadata: {}", e);
+            panic!("Error accessing file metadata: {}", e);
+        }  
+    }
+}
+
+fn print_state(file_path: &PathBuf) {    
+    // read file before access metadata
+    let file = fs::File::open(file_path).unwrap();
+    let reader = std::io::BufReader::new(file);
+    let _ = reader.bytes().count();
+
+    if let Some(modified) = get_file_updated_time(file_path) {
+        let sys_time = SystemTime::now();
+        let difference = sys_time.duration_since(modified);
+        if let Ok(difference) = difference {
+            println!("Updated before {:?}", difference);
         }
     }
 }
@@ -125,8 +135,29 @@ fn remove_cache_file(file_path: &PathBuf) {
     }
 }
 
+fn parse_duration_with_units(s: &str) -> Option<Duration> {
+    let re = Regex::new(r"^(\d+)\s*(s|m|min|h)$").unwrap();
+    if let Some(caps) = re.captures(s) {
+        let num = caps.get(1).unwrap().as_str().parse::<u64>();
+        let unit = caps.get(2).unwrap().as_str();
+
+        if let Ok(num) = num {
+            match unit {
+                "s" => return Some(Duration::from_secs(num)),
+                "m" | "min" => return Some(Duration::from_secs(num * 60)),
+                "h" => return Some(Duration::from_secs(num * 60 * 60)),
+                _ => panic!("Invalid unit"),
+            }
+        } else {
+            panic!("Invalid number");
+        }
+    } else {
+        panic!("Invalid format");
+    }
+}
+
 fn main() {
-    let matches = App::new("rhy")
+    let matches = App::new("rhy <https://github.com/950288/rhy>")
         .version(env!("CARGO_PKG_VERSION"))
         .author("95028 <950288s@gmail.com>")
         .about("A tool for track file state.")
@@ -189,15 +220,40 @@ fn main() {
         return;
     }
 
+    let mut Timeout = Duration::from_secs(0);
+    if let Some(timeout) = matches.value_of("timeout") {
+        Timeout = parse_duration_with_units(timeout).unwrap();
+        return;
+    }
+
     if let Some(file) = matches.value_of("refresh") {
         if let Ok(file_path) = fs::canonicalize(Path::new(&file)) {
             let cached_file_path =  get_cached_file_path(&config_map, &file_path);
-            remove_cache_file(&cached_file_path);
-            print_state(&file_path);
+            if Timeout.as_secs() == 0 {
+                remove_cache_file(&cached_file_path);
+                print_state(&file_path);
+                return;
+            } else {
+                print!("detect change of {:?} within past {:?}", file, Timeout.as_secs());
+                loop {
+                    remove_cache_file(&cached_file_path);
+                    let sys_time = SystemTime::now();
+                    let updated_time = get_file_updated_time(&file_path).unwrap();
+                    if let Ok(difference) = sys_time.duration_since(updated_time) {
+                        if difference.as_secs() < Timeout.as_secs() {
+                            println!();
+                            println!("Updated before {:?}", difference);
+                            break;
+                        } else {
+                            print!(".");
+                            std::thread::sleep(Duration::from_secs(1));
+                        }
+                    }
+                }
+            }
         } else {
             panic!("{:?} not exists", file);
         }
-        return;
     }
 
     if matches.is_present("refresh_all") {
@@ -205,10 +261,6 @@ fn main() {
         return;
     }
 
-    if let Some(timeout) = matches.value_of("timeout") {
-        println!("{:?}", timeout);
-        return;
-    }
     
     let config_file = get_config_path();
     println!("Config file: {:?}", config_file.to_string_lossy().replace("\\", "/"));

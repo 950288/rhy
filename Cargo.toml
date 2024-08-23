@@ -1,6 +1,6 @@
 [package]
 name = "rhy"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "A tool for track file state"
 readme = "README.md"
@@ -12,6 +12,7 @@ license = "MIT"
 [dependencies]
 clap = "~2.27.0"
 dirs="1.0.3"
+regex = "1"
 serde_yaml="0.9.34"
 walkdir = "2.3"
 
