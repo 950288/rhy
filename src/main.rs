@@ -220,27 +220,26 @@ fn main() {
         return;
     }
 
-    let mut Timeout = Duration::from_secs(0);
-    if let Some(timeout) = matches.value_of("timeout") {
-        Timeout = parse_duration_with_units(timeout).unwrap();
-        return;
+    let mut timeout = Duration::from_secs(0);
+    if let Some(value) = matches.value_of("timeout") {
+        timeout = parse_duration_with_units(value).unwrap();
     }
 
     if let Some(file) = matches.value_of("refresh") {
         if let Ok(file_path) = fs::canonicalize(Path::new(&file)) {
             let cached_file_path =  get_cached_file_path(&config_map, &file_path);
-            if Timeout.as_secs() == 0 {
+            if timeout.as_secs() == 0 {
                 remove_cache_file(&cached_file_path);
                 print_state(&file_path);
                 return;
             } else {
-                print!("detect change of {:?} within past {:?}", file, Timeout.as_secs());
+                print!("Detecting change of {:?} within past {:?}", file, timeout.as_secs());
                 loop {
                     remove_cache_file(&cached_file_path);
                     let sys_time = SystemTime::now();
                     let updated_time = get_file_updated_time(&file_path).unwrap();
                     if let Ok(difference) = sys_time.duration_since(updated_time) {
-                        if difference.as_secs() < Timeout.as_secs() {
+                        if difference.as_secs() < timeout.as_secs() {
                             println!();
                             println!("Updated before {:?}", difference);
                             break;
