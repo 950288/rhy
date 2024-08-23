@@ -127,9 +127,11 @@ fn get_cached_file_path(config_map: &BTreeMap<String, String>, file: &PathBuf) -
     return maped_file;
 }
 
-fn remove_cache_file(file_path: &PathBuf) {
+fn remove_cache_file(file_path: &PathBuf, verbose: bool) {
     if let Err(e) = fs::remove_file(file_path) {
-        println!("Cache not exists: {:?} \t {:?}", &file_path, e);
+        if verbose {
+            println!("Cache not exists: {:?} \t {:?}", &file_path, e);
+        }
     } else {
         println!("Cache removed: {:?}", &file_path);
     }
@@ -220,22 +222,14 @@ fn main() {
         return;
     }
 
-    let mut timeout = Duration::from_secs(0);
-    if let Some(value) = matches.value_of("timeout") {
-        timeout = parse_duration_with_units(value).unwrap();
-    }
-
     if let Some(file) = matches.value_of("refresh") {
         if let Ok(file_path) = fs::canonicalize(Path::new(&file)) {
             let cached_file_path =  get_cached_file_path(&config_map, &file_path);
-            if timeout.as_secs() == 0 {
-                remove_cache_file(&cached_file_path);
-                print_state(&file_path);
-                return;
-            } else {
-                print!("Detecting change of {:?} within past {:?}", file, timeout.as_secs());
+            if let Some(timeout) = matches.value_of("timeout") {
+                let timeout = parse_duration_with_units(timeout).unwrap();
+                print!("Detecting change of {:?} within past {:?} ", file, timeout.as_secs());
                 loop {
-                    remove_cache_file(&cached_file_path);
+                    remove_cache_file(&cached_file_path, false);
                     let sys_time = SystemTime::now();
                     let updated_time = get_file_updated_time(&file_path).unwrap();
                     if let Ok(difference) = sys_time.duration_since(updated_time) {
@@ -249,10 +243,15 @@ fn main() {
                         }
                     }
                 }
+            } else {
+                remove_cache_file(&cached_file_path, true);
+                print_state(&file_path);
+                return;
             }
         } else {
             panic!("{:?} not exists", file);
         }
+        return;
     }
 
     if matches.is_present("refresh_all") {
