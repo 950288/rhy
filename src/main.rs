@@ -133,7 +133,9 @@ fn remove_cache_file(file_path: &PathBuf, verbose: bool) {
             println!("Cache not exists: {:?} \t {:?}", &file_path, e);
         }
     } else {
-        println!("Cache removed: {:?}", &file_path);
+        if verbose {
+            println!("Cache removed: {:?}", &file_path);
+        }
     }
 }
 
