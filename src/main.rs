@@ -234,16 +234,15 @@ fn main() {
                     remove_cache_file(&cached_file_path, false);
                     let sys_time = SystemTime::now();
                     let updated_time = get_file_updated_time(&file_path).unwrap();
-                    if let Ok(difference) = sys_time.duration_since(updated_time) {
-                        if difference.as_secs() < timeout.as_secs() {
-                            println!();
-                            println!("Updated before {:?}", difference);
-                            break;
-                        } else {
-                            print!(".");
-                            std::thread::sleep(Duration::from_secs(1));
-                        }
+                    let difference = sys_time.duration_since(updated_time).unwrap();
+                    if difference.as_secs() < timeout.as_secs() {
+                        println!("\nUpdated before {:?}", difference);
+                        break;
+                    } else {
+                        print!(".");
+                        std::thread::sleep(Duration::from_secs(1));
                     }
+                    
                 }
             } else {
                 remove_cache_file(&cached_file_path, true);
