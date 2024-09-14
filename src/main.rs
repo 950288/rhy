@@ -2,6 +2,7 @@ use clap::{App, Arg};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use dirs;
+use std::io;
 use std::fs;
 use serde_yaml;
 use regex::Regex;
@@ -229,7 +230,8 @@ fn main() {
             let cached_file_path =  get_cached_file_path(&config_map, &file_path);
             if let Some(timeout) = matches.value_of("timeout") {
                 let timeout = parse_duration_with_units(timeout).unwrap();
-                print!("Detecting change of {:?} within past {:?} ", file, timeout.as_secs());
+                print!("Detecting change of {:?} within past {:?}s .", file, timeout.as_secs());
+                io::stdout().flush().unwrap();
                 loop {
                     remove_cache_file(&cached_file_path, false);
                     let sys_time = SystemTime::now();
@@ -240,6 +242,7 @@ fn main() {
                         break;
                     } else {
                         print!(".");
+                        io::stdout().flush().unwrap();
                         std::thread::sleep(Duration::from_secs(1));
                     }
                     
