@@ -243,7 +243,7 @@ fn main() {
                     } else {
                         print!(".");
                         io::stdout().flush().unwrap();
-                        std::thread::sleep(Duration::from_secs(1));
+                        std::thread::sleep(Duration::from_millis(200));
                     }
                     
                 }
