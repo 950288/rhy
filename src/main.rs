@@ -1,15 +1,15 @@
 use clap::{App, Arg};
+use dirs;
+use regex::Regex;
+use serde_yaml;
+use std::collections::BTreeMap;
+use std::fs;
+use std::io;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use dirs;
-use std::io;
-use std::fs;
-use serde_yaml;
-use regex::Regex;
-use walkdir::WalkDir;
 use std::time::Duration;
 use std::time::SystemTime;
-use std::collections::BTreeMap;
+use walkdir::WalkDir;
 
 fn get_config_path() -> std::path::PathBuf {
     let app_name = "rhy";
@@ -17,7 +17,11 @@ fn get_config_path() -> std::path::PathBuf {
     return config_dir_path.join(app_name).join("config.yaml");
 }
 
-fn set_config(mut config: BTreeMap<String, String>, key: String, value: String) -> BTreeMap<String, String> {
+fn set_config(
+    mut config: BTreeMap<String, String>,
+    key: String,
+    value: String,
+) -> BTreeMap<String, String> {
     config.insert(key, value);
     let yaml = serde_yaml::to_string(&config).unwrap();
     let config_path = get_config_path();
@@ -31,7 +35,6 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
 
     let file = fs::File::open(&config_path);
     if let Ok(file) = file {
-
         let reader = std::io::BufReader::new(file);
 
         let config: BTreeMap<String, String> = serde_yaml::from_reader(reader).unwrap();
@@ -44,7 +47,6 @@ fn get_conf(config_path: std::path::PathBuf) -> BTreeMap<String, String> {
 
         return map;
     } else {
-
         fs::create_dir_all(config_path.parent().unwrap()).unwrap();
 
         map.insert("cache_dir".to_string(), "/data/rcache".to_string());
@@ -70,14 +72,14 @@ fn get_file_updated_time(file_path: &PathBuf) -> Option<SystemTime> {
         Ok(metadata) => {
             let modified = metadata.modified().unwrap();
             return Some(modified);
-        },
+        }
         Err(e) => {
             panic!("Error accessing file metadata: {}", e);
-        }  
+        }
     }
 }
 
-fn print_state(file_path: &PathBuf) {    
+fn print_state(file_path: &PathBuf) {
     // read file before access metadata
     let file = fs::File::open(file_path).unwrap();
     let reader = std::io::BufReader::new(file);
@@ -97,7 +99,7 @@ fn remove_all_cache(config_map: &BTreeMap<String, String>) {
     if !cache_path.exists() {
         println!("Cache not exists {:?}", config_map["cache_dir"]);
         return;
-    } 
+    }
     if cache_path.is_dir() {
         for entry in WalkDir::new(cache_path) {
             let entry = entry.unwrap();
@@ -108,7 +110,7 @@ fn remove_all_cache(config_map: &BTreeMap<String, String>) {
         println!("Cache removed: {:?}", cache_path);
     } else if cache_path.is_file() {
         fs::remove_file(cache_path).unwrap();
-    } 
+    }
 }
 
 fn map_cache_file(file: &PathBuf, mount_path: &PathBuf, cache_dir: &PathBuf) -> PathBuf {
@@ -122,8 +124,14 @@ fn map_cache_file(file: &PathBuf, mount_path: &PathBuf, cache_dir: &PathBuf) -> 
 }
 
 fn get_cached_file_path(config_map: &BTreeMap<String, String>, file: &PathBuf) -> PathBuf {
-    let cache_dir = fs::canonicalize(Path::new(&config_map["cache_dir"])).unwrap().join(&config_map["remote_path"]);
-    let maped_file = map_cache_file(file, &fs::canonicalize(Path::new(&config_map["mount_path"])).unwrap(), &cache_dir);
+    let cache_dir = fs::canonicalize(Path::new(&config_map["cache_dir"]))
+        .unwrap()
+        .join(&config_map["remote_path"]);
+    let maped_file = map_cache_file(
+        file,
+        &fs::canonicalize(Path::new(&config_map["mount_path"])).unwrap(),
+        &cache_dir,
+    );
 
     return maped_file;
 }
@@ -173,7 +181,7 @@ fn main() {
                 .value_name("KEY VALUE")
                 .help("Set config")
                 .required(false)
-                .number_of_values(2)
+                .number_of_values(2),
         )
         .arg(
             Arg::with_name("state")
@@ -226,34 +234,40 @@ fn main() {
     }
 
     if let Some(file) = matches.value_of("refresh") {
-        if let Ok(file_path) = fs::canonicalize(Path::new(&file)) {
-            let cached_file_path =  get_cached_file_path(&config_map, &file_path);
-            if let Some(timeout) = matches.value_of("timeout") {
-                let timeout = parse_duration_with_units(timeout).unwrap();
-                print!("Detecting change of {:?} within past {:?}s .", file, timeout.as_secs());
-                io::stdout().flush().unwrap();
-                loop {
-                    remove_cache_file(&cached_file_path, false);
-                    let sys_time = SystemTime::now();
-                    let updated_time = get_file_updated_time(&file_path).unwrap();
-                    let difference = sys_time.duration_since(updated_time).unwrap();
-                    if difference.as_secs() < timeout.as_secs() {
-                        println!("\nUpdated before {:?}", difference);
-                        break;
-                    } else {
-                        print!(".");
-                        io::stdout().flush().unwrap();
-                        std::thread::sleep(Duration::from_millis(200));
+        match fs::canonicalize(Path::new(&file)) {
+            Ok(file_path) => {
+                let cached_file_path = get_cached_file_path(&config_map, &file_path);
+                if let Some(timeout) = matches.value_of("timeout") {
+                    let timeout = parse_duration_with_units(timeout).unwrap();
+                    print!(
+                        "Detecting change of {:?} within past {:?}s .",
+                        file,
+                        timeout.as_secs()
+                    );
+                    io::stdout().flush().unwrap();
+                    loop {
+                        remove_cache_file(&cached_file_path, false);
+                        let sys_time = SystemTime::now();
+                        let updated_time = get_file_updated_time(&file_path).unwrap();
+                        let difference = sys_time.duration_since(updated_time).unwrap();
+                        if difference.as_secs() < timeout.as_secs() {
+                            println!("\nUpdated before {:?}", difference);
+                            break;
+                        } else {
+                            print!(".");
+                            io::stdout().flush().unwrap();
+                            std::thread::sleep(Duration::from_millis(200));
+                        }
                     }
-                    
+                } else {
+                    remove_cache_file(&cached_file_path, true);
+                    print_state(&file_path);
+                    return;
                 }
-            } else {
-                remove_cache_file(&cached_file_path, true);
-                print_state(&file_path);
-                return;
+            },
+            Err(e) => {
+                panic!("Error: {:?}", e);
             }
-        } else {
-            panic!("{:?} not exists", file);
         }
         return;
     }
@@ -263,8 +277,10 @@ fn main() {
         return;
     }
 
-    
     let config_file = get_config_path();
-    println!("Config file: {:?}", config_file.to_string_lossy().replace("\\", "/"));
+    println!(
+        "Config file: {:?}",
+        config_file.to_string_lossy().replace("\\", "/")
+    );
     println!("{:?}", config_map);
 }
