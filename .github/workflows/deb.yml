@@ -19,10 +19,10 @@ jobs:
         toolchain: stable
         override: true
 
+    - uses: cargo-bins/cargo-binstall@main
     - name: install compiler
       run: |
-        # sudo apt install mingw-w64
-        cargo install cargo-deb
+        cargo binstall cargo-deb --no-confirm
  
     - name: Build for deb
       run: |
@@ -33,6 +33,9 @@ jobs:
       with:
         name: deb
         path: ./target/debian/*.deb
+
+    - name: Install coscmd
+      run: sudo pip install https://github.com/tencentyun/coscmd/archive/refs/heads/master.zip
 
     - name: Configure coscmd
       env:
