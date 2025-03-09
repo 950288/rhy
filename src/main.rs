@@ -118,15 +118,15 @@ impl Config {
         if let Yaml::Hash(ref mut hash) = map {
             hash.insert(
                 Yaml::String("cache_dir".to_string()),
-                Yaml::String("/data/rcache".to_string()),
+                Yaml::String(self.cache_dir.clone()),
             );
             hash.insert(
                 Yaml::String("mount_path".to_string()),
-                Yaml::String("/remote".to_string()),
+                Yaml::String(self.mount_path.clone()),
             );
             hash.insert(
                 Yaml::String("remote_path".to_string()),
-                Yaml::String("vfs/".to_string()),
+                Yaml::String(self.remote_path.clone()),
             );
         }
 
@@ -137,7 +137,7 @@ impl Config {
         let mut file = File::create(&config_path).unwrap();
         file.write_all(out_str.as_bytes()).unwrap();
         
-        println!("{} file created successfully!", config_path.display());
+        println!("{} file updated successfully!", config_path.display());
         println!("{:#?}", self);
     }
 
