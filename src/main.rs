@@ -231,7 +231,7 @@ fn remove_cache_file(file_path: &PathBuf, verbose: bool) {
     }
 }
 
-fn parse_duration_with_units(s: &str) -> Option<Duration> {
+fn parse_duration_with_units(s: &str) -> Duration {
     let re = Regex::new(r"^(\d+)\s*(s|m|min|h)$").unwrap();
     if let Some(caps) = re.captures(s) {
         let num = caps.get(1).unwrap().as_str().parse::<u64>();
@@ -239,9 +239,9 @@ fn parse_duration_with_units(s: &str) -> Option<Duration> {
 
         if let Ok(num) = num {
             match unit {
-                "s" => return Some(Duration::from_secs(num)),
-                "m" | "min" => return Some(Duration::from_secs(num * 60)),
-                "h" => return Some(Duration::from_secs(num * 60 * 60)),
+                "s" => return Duration::from_secs(num),
+                "m" | "min" => return Duration::from_secs(num * 60),
+                "h" => return Duration::from_secs(num * 60 * 60),
                 _ => panic!("Invalid unit"),
             }
         } else {
@@ -250,6 +250,23 @@ fn parse_duration_with_units(s: &str) -> Option<Duration> {
     } else {
         panic!("Invalid format");
     }
+}
+
+fn touch_file(file: &String) -> PathBuf {
+    let file_path = match fs::canonicalize(std::path::Path::new(&file)){
+        Ok(file_path) => file_path,
+        Err(e) => {
+            println!("File not exists: {:?}", &file);
+            panic!("Error: {:?}", e);
+        }
+    };
+
+    let file = File::open(file).unwrap();
+
+    let reader = std::io::BufReader::new(file);
+    reader.bytes().count();
+
+    return file_path
 }
 
 use clap::Subcommand;
@@ -270,7 +287,7 @@ struct App {
     #[arg(short = 'a', long)]
     refresh_all: Option<String>,
     #[arg(short = 'T', long)]
-    timeout: Option<u32>,
+    timeout: Option<String>,
     #[arg(short = 't', long)]
     timeout_auto: bool,
 }
@@ -316,6 +333,7 @@ fn main() {
 
     match matches.state {
         Some(file) => {
+            touch_file(&file);
             let file_path = std::path::Path::new(&file);
             print_state(&file_path);
             return;
@@ -323,23 +341,17 @@ fn main() {
         None => {}
     }
 
-    let timeout: u32 = match matches.timeout_auto {
-        true => 20,
+    let timeout: Duration = match matches.timeout_auto {
+        true => Duration::from_secs(20),
         false => match matches.timeout {
-            Some(timeout) => timeout,
-            None => 0,
+            Some(timeout) => parse_duration_with_units(&timeout),
+            None => Duration::from_secs(0),
         },
     };
 
     match matches.refresh {
         Some(file) => {
-            let file_path = match fs::canonicalize(std::path::Path::new(&file)){
-                Ok(file_path) => file_path,
-                Err(e) => {
-                    println!("File not exists: {:?}", &file);
-                    panic!("Error: {:?}", e);
-                }
-            };
+            let file_path = touch_file(&file);
             let cached_file_path = config.get_cached_file_path(&file_path);
             remove_cache_file(&cached_file_path, true);
             print_state(&file_path);
