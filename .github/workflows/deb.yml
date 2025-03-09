@@ -46,7 +46,7 @@ jobs:
       run: coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
     - name: Upload to cos
       run: |
-        coscmd upload -rs ./target/debian/*.deb /deb/rhy --ignore "./.git/*"
+        coscmd upload -rs ./target/debian/*.deb /deb/rhy/ --ignore "./.git/*"
         coscmd list /
 
     
