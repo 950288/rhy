@@ -22,7 +22,7 @@ jobs:
     - uses: cargo-bins/cargo-binstall@main
     - name: install compiler
       run: |
-        cargo binstall cargo-deb --no-confirm
+        cargo binstall cargo-deb
  
     - name: Build for deb
       run: |
