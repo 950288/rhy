@@ -12,7 +12,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - uses: Swatinem/rust-cache@v2
     - uses: actions-rs/toolchain@v1.0.6
       with:
         profile: minimal
@@ -24,6 +23,7 @@ jobs:
       run: |
         cargo binstall cargo-deb
  
+    - uses: Swatinem/rust-cache@v2
     - name: Build for deb
       run: |
         cargo deb 
