@@ -6,20 +6,22 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
+    - uses: actions-rs/toolchain@v1.0.6
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
 
     - name: install compiler
       run: |
-        sudo apt install mingw-w64
+        # sudo apt install mingw-w64
         cargo install cargo-deb
  
     - name: Build for deb
@@ -28,19 +30,6 @@ jobs:
 
     - name: Upload deb zip
       uses: actions/upload-artifact@v4    
-      with:
-        name: deb
-        path: ./target/debian/*.deb
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Install coscmd
-      run: sudo pip install coscmd
-
-    - uses: actions/download-artifact@v4
       with:
         name: deb
         path: ./target/debian/*.deb

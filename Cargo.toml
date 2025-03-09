@@ -1,20 +1,18 @@
 [package]
 name = "rhy"
-version = "0.2.7"
-edition = "2021"
-description = "A tool for track file state"
+version = "0.3.0"
+edition = "2024"
+about = "A tool for track file state"
 readme = "README.md"
 authors = ["95028 <950288s@gmail.com>"]
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-clap = "~2.27.0"
-dirs="1.0.3"
-regex = "1"
-serde_yaml="0.9.34"
-walkdir = "2.3"
+clap = { version = "4.5.31", features = ["derive"] }
+dirs="6.0.0"
+regex = "1.11.1"
+yaml-rust2 = "0.10.0"
+walkdir = "2.5.0"
 
 [package.metadata.deb]
 maintainer = "95028 <950288s@gmail.com>"

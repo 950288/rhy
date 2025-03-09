@@ -7,7 +7,9 @@ rhy -a
 
 set config
 ```
-rhy -config mount_path /remote/
+rhy cache-dir /data/rcache
+rhy mount_path /remote
+rhy remote-path vfs/
 ```
 
 print the state of x.py
