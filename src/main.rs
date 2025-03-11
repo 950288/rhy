@@ -1,3 +1,4 @@
+use clap::ArgAction;
 use clap::Args;
 use clap::command;
 use yaml_rust2::Yaml;
@@ -6,9 +7,9 @@ use yaml_rust2::{YamlEmitter, YamlLoader};
 use dirs;
 use regex::Regex;
 // use serde_yaml;
+use clap::CommandFactory;
 use clap::Parser;
 use std::collections::BTreeMap;
-use clap::CommandFactory;
 use std::f32::consts::TAU;
 use std::fs;
 use std::fs::File;
@@ -106,15 +107,12 @@ impl Config {
             }
         }
 
-
-
         let config_path = get_config_path();
         let parent = config_path.parent().unwrap();
         fs::create_dir_all(parent).unwrap();
 
-        
         let mut map = Yaml::Hash(Default::default());
-        
+
         if let Yaml::Hash(ref mut hash) = map {
             hash.insert(
                 Yaml::String("cache_dir".to_string()),
@@ -136,7 +134,7 @@ impl Config {
 
         let mut file = File::create(&config_path).unwrap();
         file.write_all(out_str.as_bytes()).unwrap();
-        
+
         println!("{} file updated successfully!", config_path.display());
         println!("{:#?}", self);
     }
@@ -145,11 +143,17 @@ impl Config {
         let cache_dir = fs::canonicalize(std::path::Path::new(self.cache_dir.as_str()))
             .unwrap()
             .join(self.remote_path);
-        let maped_file = map_cache_file(
-            file,
-            &fs::canonicalize(std::path::Path::new(self.mount_path.as_str())).unwrap(),
-            &cache_dir,
-        );
+
+        let mount_path = match fs::canonicalize(std::path::Path::new(self.mount_path.as_str())) {
+            Ok(mount_path) => mount_path,
+            Err(e) => {
+                panic!(
+                    "Error accessing mount path: {:?}",
+                    std::path::Path::new(self.mount_path.as_str())
+                );
+            }
+        };
+        let maped_file = map_cache_file(file, &mount_path, &cache_dir);
 
         return maped_file;
     }
@@ -253,10 +257,11 @@ fn parse_duration_with_units(s: &str) -> Duration {
 }
 
 fn touch_file(file: &String) -> PathBuf {
-    let file_path = match fs::canonicalize(std::path::Path::new(&file)){
+    println!("Touching file: {:?}", std::path::Path::new(&file));
+    let file_path = match fs::canonicalize(std::path::Path::new(&file)) {
         Ok(file_path) => file_path,
         Err(e) => {
-            println!("File not exists: {:?}", &file);
+            println!("File not exists: {:?}", std::path::Path::new(&file));
             panic!("Error: {:?}", e);
         }
     };
@@ -266,7 +271,7 @@ fn touch_file(file: &String) -> PathBuf {
     let reader = std::io::BufReader::new(file);
     reader.bytes().count();
 
-    return file_path
+    return file_path;
 }
 
 use clap::Subcommand;
@@ -282,14 +287,17 @@ struct App {
 
     #[arg(short, long)]
     state: Option<String>,
-    #[arg(short, long)]
-    refresh: Option<String>,
+    // #[arg(short, long)]
+    // refresh: Option<String>,
     #[arg(short = 'a', long)]
     refresh_all: Option<String>,
     #[arg(short = 'T', long)]
     timeout: Option<String>,
     #[arg(short = 't', long)]
     timeout_auto: bool,
+
+    #[arg(value_name = "path", default_value = "", action = ArgAction::Set)]
+    input: String,
 }
 
 #[derive(Subcommand)]
@@ -349,16 +357,14 @@ fn main() {
         },
     };
 
-    match matches.refresh {
-        Some(file) => {
-            let file_path = touch_file(&file);
-            let cached_file_path = config.get_cached_file_path(&file_path);
-            remove_cache_file(&cached_file_path, true);
-            print_state(&file_path);
-            return;
-        }
-        None => {}
+    if !matches.input.is_empty() {
+        let file_path = touch_file(&matches.input);
+        let cached_file_path = config.get_cached_file_path(&file_path);
+        remove_cache_file(&cached_file_path, true);
+        print_state(&file_path);
+        return;
     }
+
 
     let mut cmd = App::command();
     cmd.print_help().unwrap();
