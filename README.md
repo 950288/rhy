@@ -8,7 +8,7 @@ rhy -a
 set config
 ```
 rhy cache-dir /data/rcache
-rhy mount_path /remote
+rhy mount-path /remote
 rhy remote-path vfs/
 ```
 
@@ -19,10 +19,10 @@ rhy -s x.py
 
 refresh and print the state of x.py
 ```
-rhy -r x.py
+rhy x.py
 ```
 
-refresh x.py until get the latest update within 20s
+refresh x.py until get the latest update within 15s
 ```
-rhy -r x.py -t 20s
+rhy -t x.py
 ```

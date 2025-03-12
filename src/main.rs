@@ -10,12 +10,14 @@ use regex::Regex;
 use clap::CommandFactory;
 use clap::Parser;
 use std::collections::BTreeMap;
+use std::env;
 use std::f32::consts::TAU;
 use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::thread::panicking;
 use std::time::Duration;
 use std::time::SystemTime;
 use walkdir::WalkDir;
@@ -139,10 +141,10 @@ impl Config {
         println!("{:#?}", self);
     }
 
-    fn get_cached_file_path(self, file: &PathBuf) -> PathBuf {
+    fn get_cached_file_path(&self, file: &PathBuf) -> PathBuf {
         let cache_dir = fs::canonicalize(std::path::Path::new(self.cache_dir.as_str()))
             .unwrap()
-            .join(self.remote_path);
+            .join(self.remote_path.clone());
 
         let mount_path = match fs::canonicalize(std::path::Path::new(self.mount_path.as_str())) {
             Ok(mount_path) => mount_path,
@@ -159,11 +161,11 @@ impl Config {
     }
 }
 
-fn get_file_updated_time(file: File) -> Option<SystemTime> {
+fn get_file_updated_time(file: File) -> SystemTime {
     match file.metadata() {
         Ok(metadata) => {
             let modified = metadata.modified().unwrap();
-            return Some(modified);
+            return modified;
         }
         Err(e) => {
             panic!("Error accessing file metadata: {}", e);
@@ -185,12 +187,11 @@ fn print_state(file_path: &std::path::Path) {
     // read file before access metadata
     let file = get_file(file_path);
 
-    if let Some(modified) = get_file_updated_time(file) {
-        let sys_time = SystemTime::now();
-        let difference = sys_time.duration_since(modified);
-        if let Ok(difference) = difference {
-            println!("Updated before {:?}", difference);
-        }
+    let modified = get_file_updated_time(file);
+    let sys_time = SystemTime::now();
+    let difference = sys_time.duration_since(modified);
+    if let Ok(difference) = difference {
+        println!("Updated before {:?}", difference);
     }
 }
 
@@ -256,13 +257,28 @@ fn parse_duration_with_units(s: &str) -> Duration {
     }
 }
 
-fn touch_file(file: &String) -> PathBuf {
-    println!("Touching file: {:?}", std::path::Path::new(&file));
+fn touch_file(file: &String, verbose: bool) -> PathBuf {
+    if verbose {
+        println!("Touching file: {:?}", std::path::Path::new(&file));
+    }
     let file_path = match fs::canonicalize(std::path::Path::new(&file)) {
         Ok(file_path) => file_path,
         Err(e) => {
-            println!("File not exists: {:?}", std::path::Path::new(&file));
-            panic!("Error: {:?}", e);
+            let current_dir = env::current_dir().unwrap_or_else(|err| {
+                panic!("Failed to get current directory: {}", err);
+            });
+            let joined_path = current_dir.join(&file);
+
+            match fs::canonicalize(&joined_path) {
+                Ok(new_path) => new_path,
+                Err(e2) => {
+                    println!("File not exists: {:?}\n", joined_path);
+                    panic!(
+                        "Both initial and joined path access failed.\nInitial error: {:?}\nJoined path error: {:?}",
+                        e, e2
+                    );
+                }
+            }
         }
     };
 
@@ -341,7 +357,7 @@ fn main() {
 
     match matches.state {
         Some(file) => {
-            touch_file(&file);
+            touch_file(&file, true);
             let file_path = std::path::Path::new(&file);
             print_state(&file_path);
             return;
@@ -350,7 +366,7 @@ fn main() {
     }
 
     let timeout: Duration = match matches.timeout_auto {
-        true => Duration::from_secs(20),
+        true => Duration::from_secs(15),
         false => match matches.timeout {
             Some(timeout) => parse_duration_with_units(&timeout),
             None => Duration::from_secs(0),
@@ -358,13 +374,31 @@ fn main() {
     };
 
     if !matches.input.is_empty() {
-        let file_path = touch_file(&matches.input);
-        let cached_file_path = config.get_cached_file_path(&file_path);
-        remove_cache_file(&cached_file_path, true);
-        print_state(&file_path);
-        return;
+        if timeout.is_zero() {
+            let file_path = touch_file(&matches.input, true);
+            let cached_file_path = config.get_cached_file_path(&file_path);
+            remove_cache_file(&cached_file_path, true);
+            print_state(&file_path);
+            return;
+        } else {
+            let current_time = SystemTime::now();
+            loop {
+                let file_path = touch_file(&matches.input, false);
+                let cached_file_path = config.get_cached_file_path(&file_path);
+                remove_cache_file(&cached_file_path, false);
+                let updated_time = get_file_updated_time(get_file(&file_path));
+                let duration = current_time.duration_since(updated_time).unwrap();
+                if duration < timeout {
+                    print_state(&file_path);
+                    break;
+                }
+                print!("-");
+                io::stdout().flush().unwrap();
+                std::thread::sleep(Duration::from_millis(200));
+            }
+            return;
+        }
     }
-
 
     let mut cmd = App::command();
     cmd.print_help().unwrap();
