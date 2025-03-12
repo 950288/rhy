@@ -3,21 +3,18 @@ use clap::Args;
 use clap::command;
 use yaml_rust2::Yaml;
 use yaml_rust2::{YamlEmitter, YamlLoader};
-// use clap::{App, Arg};
 use dirs;
 use regex::Regex;
-// use serde_yaml;
+use std::process::Command;
 use clap::CommandFactory;
 use clap::Parser;
 use std::collections::BTreeMap;
 use std::env;
-use std::f32::consts::TAU;
 use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::thread::panicking;
 use std::time::Duration;
 use std::time::SystemTime;
 use walkdir::WalkDir;
@@ -216,7 +213,6 @@ fn remove_all_cache(config_map: &BTreeMap<String, String>) {
 
 fn map_cache_file(file: &PathBuf, mount_path: &PathBuf, cache_dir: &PathBuf) -> PathBuf {
     let parent = PathBuf::from(file.parent().unwrap());
-    // println!("{:?} {:?}", parent, mount_path);
     if &parent == mount_path {
         return cache_dir.join(file.file_name().unwrap());
     } else {
@@ -261,12 +257,17 @@ fn touch_file(file: &String, verbose: bool) -> PathBuf {
     if verbose {
         println!("Touching file: {:?}", std::path::Path::new(&file));
     }
-    let file_path = match fs::canonicalize(std::path::Path::new(&file)) {
+    if !cfg!(target_os = "windows") {
+        let out_put = Command::new("sh").arg("-c").arg("pwd").output().expect("shell exec error!");
+        println!("out_put: {:?}", String::from_utf8(out_put.stdout).unwrap());
+    }
+    let file_path = match fs::canonicalize(&file) {
         Ok(file_path) => file_path,
         Err(e) => {
-            let current_dir = env::current_dir().unwrap_or_else(|err| {
-                panic!("Failed to get current directory: {}", err);
-            });
+            // let current_dir = env::current_dir().unwrap_or_else(|err| {
+            //     panic!("Failed to get current directory: {}", err);
+            // });
+            let current_dir = fs::canonicalize(".").unwrap();
             let joined_path = current_dir.join(&file);
 
             match fs::canonicalize(&joined_path) {
