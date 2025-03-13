@@ -17,6 +17,7 @@ jobs:
         profile: minimal
         toolchain: stable
         override: true
+        target: x86_64-unknown-linux-musl
 
     - uses: cargo-bins/cargo-binstall@main
     - name: install compiler
