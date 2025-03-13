@@ -257,17 +257,16 @@ fn touch_file(file: &String, verbose: bool) -> PathBuf {
     if verbose {
         println!("Touching file: {:?}", std::path::Path::new(&file));
     }
-    if !cfg!(target_os = "windows") {
-        let out_put = Command::new("sh").arg("-c").arg("pwd").output().expect("shell exec error!");
-        println!("out_put: {:?}", String::from_utf8(out_put.stdout).unwrap());
-    }
     let file_path = match fs::canonicalize(&file) {
         Ok(file_path) => file_path,
         Err(e) => {
-            // let current_dir = env::current_dir().unwrap_or_else(|err| {
-            //     panic!("Failed to get current directory: {}", err);
-            // });
-            let current_dir = fs::canonicalize(".").unwrap();
+            let current_dir = if !cfg!(target_os = "windows") {
+            let pwd_out = Command::new("sh").arg("-c").arg("pwd").output().expect("shell exec error!").stdout;
+                let pwd_path = String::from_utf8(pwd_out).unwrap().replace("\n", "");
+                fs::canonicalize(pwd_path).unwrap()
+            } else {
+                fs::canonicalize(".").unwrap()
+            };
             let joined_path = current_dir.join(&file);
 
             match fs::canonicalize(&joined_path) {
